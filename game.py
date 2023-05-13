@@ -3,15 +3,25 @@ import time
 import threading
 import asyncio
 import os
+import csv
+from pathlib import Path
 
 
-class GameUpdate:
+class GameUpdate():
     def __init__(self):
-        self.timePlayed = mm.NewFileData.player_total_time_played
+        self.timePlayed = 0
 
     def update(self):
-        self.timePlayed += 5
+        pass
 
+    # def saveGame(self, selfDataList):
+    #     saveName = str(selfDataList[0][0])
+    #     filename = Path("saves/" + saveName + ".csv")
+    #     with open(filename, 'w', newline="") as f:
+    #         writer = csv.writer(f, delimiter=",", quoting=csv.QUOTE_MINIMAL)
+    #         writer.writerow(selfDataList)
+    #         f.close()
+    #     print("Game saved!")
 
 class Tick(GameUpdate):
     def __init__(self):
@@ -22,14 +32,19 @@ class Tick(GameUpdate):
             time.sleep(5)
             self.update(self)
 
+    # async def autoSave(self, saveData):
+    #     while True:
+    #         time.sleep(30)
+    #         self.saveGame(self, saveData)
 
 class MainGame(Tick):
     def __init__(self, saveData):
         super().__init__(self)
         self.saveData = saveData
-        self.playerName = saveData[0][0]
-        self.playerInventory = saveData[0][12]
+        self.playerName = self.saveData[0]
         tick = threading.Thread(target=asyncio.run, args=(self.tick(self),))
+        # autosave = threading.Thread(target=asyncio.run, args=(self.autoSave(self, self.saveData),))
+        # autosave.start()
         tick.start()
         MainGame.game(self)
 
@@ -65,5 +80,9 @@ class MainGame(Tick):
         os.system('cls||clear')
 
 
+
+
+
 if __name__ == "__main__":
     mm.MainMenu.mainMenu(self=mm.MainMenu)
+

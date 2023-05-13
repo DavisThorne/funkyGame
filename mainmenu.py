@@ -6,9 +6,11 @@ import os
 import sys
 from pathlib import Path
 import csv
+import sqlite3
 
 
 class NewFileData:
+    playerName = ""
     player_lvl = 1
     player_xp = 0
     player_hp = 100
@@ -20,45 +22,36 @@ class NewFileData:
     player_speed = 10
     player_luck = 10
     player_gold = 0
-    player_inventory = []
-    player_equipment = []
-    player_skills = []
-    player_spells = []
-    player_location = []
-    player_quests = []
-    player_achievements = []
-    player_deaths = 0
-    player_wins = 0
-    player_losses = 0
-    player_total_battles = 0
-    player_total_damage_dealt = 0
-    player_total_damage_taken = 0
-    player_total_healing_done = 0
-    player_total_healing_taken = 0
-    player_total_critical_hits = 0
-    player_total_critical_misses = 0
-    player_total_dodges = 0
-    player_total_misses = 0
-    player_total_blocks = 0
-    player_total_turns = 0
-    player_total_time_played = 0
-    player_total_time_afk = 0
-    player_total_time_online = 0
-    player_total_time_offline = 0
-    player_total_time_dead = 0
-    player_total_time_alive = 0
-    player_total_time_in_combat = 0
-    player_total_time_out_of_combat = 0
+    player_total_play_time = 0
+    player_inventory = {}
 
-    datalist = [player_lvl, player_xp, player_hp, player_mp, player_attack, player_defense, player_magic_attack,
-                player_magic_defense, player_speed, player_luck, player_gold, player_inventory, player_equipment,
-                player_skills, player_spells, player_location, player_quests, player_achievements, player_deaths,
-                player_wins, player_losses, player_total_battles, player_total_damage_dealt, player_total_damage_taken,
-                player_total_healing_done, player_total_healing_taken, player_total_critical_hits,
-                player_total_critical_misses, player_total_dodges, player_total_misses, player_total_blocks,
-                player_total_turns, player_total_time_played, player_total_time_afk, player_total_time_online,
-                player_total_time_offline, player_total_time_dead, player_total_time_alive, player_total_time_in_combat,
-                player_total_time_out_of_combat]
+    def data_base_creation(self, saveName, playerName):
+        conn = sqlite3.connect(saveName)
+        conn.execute('''CREATE TABLE game_data
+                     (player_name TEXT NOT NULL,
+                     current_level INTEGER NOT NULL,
+                     health INTEGER NOT NULL,
+                     mana INTEGER NOT NULL,
+                     attack_dmg INTEGER NOT NULL,
+                     defense INTEGER NOT NULL,
+                     magic_attack_dmg INTEGER NOT NULL,
+                     magic_defense INTEGER NOT NULL,
+                     speed INTEGER NOT NULL,
+                     gold INTEGER NOT NULL,
+                     total_play_time FLOAT NOT NULL);''')
+        conn.commit()
+        conn.close()
+        print("Database created successfully!")
+        self.data_addition(self, saveName, playerName)
+
+    def data_addition(self, saveName, playerName):
+        self.playerName = playerName
+        conn = sqlite3.connect(saveName)
+        conn.execute(f"""INSERT INTO game_data (player_name, current_level, health, mana, attack_dmg, defense, magic_attack_dmg, magic_defense, speed, gold, total_play_time)
+                     VALUES ('{self.playerName}', {self.player_lvl}, {self.player_hp}, {self.player_mp}, {self.player_attack}, {self.player_defense}, {self.player_magic_attack}, {self.player_magic_defense}, {self.player_speed}, {self.player_gold}, {self.player_total_play_time});""")
+        conn.commit()
+        conn.close()
+        LoadGame.read_save(self=LoadGame, newSave=saveName)
 
 
 class MainMenu:
@@ -88,21 +81,16 @@ class NewGame(MainMenu):
     def __init__(self):
         super().__init__()
         self.playerName = ""
-        self.filename = ""
+        self.saveDataFileName = ""
+        self.playerInventoryFileName = ""
 
     def input_gathering(self):
         self.playerName = input("Enter your name: ")
-        self.file_creation(self)
+        self.new_save_creation(self)
 
-    def file_creation(self):
-        self.filename = Path("saves/" + self.playerName + ".csv")
-        datalist = NewFileData.datalist
-        datalist.insert(0, self.playerName)
-        with open(self.filename, "a") as f:
-            writer = csv.writer(f, delimiter=",", quoting=csv.QUOTE_MINIMAL)
-            writer.writerow(datalist)
-
-        LoadGame.read_save(self=LoadGame, newSave=self.filename)
+    def new_save_creation(self):
+        self.saveDataFileName = Path("saves/" + self.playerName + ".db")
+        NewFileData.data_base_creation(self=NewFileData, saveName=self.saveDataFileName, playerName=self.playerName)
 
 
 class LoadGame(MainMenu):
@@ -114,6 +102,7 @@ class LoadGame(MainMenu):
     # Function for selecting save files
     def select_save(self):
         print("Available saves:")
+        # Enumerate all saves in /saves and print them to screen with a number
         for n, s in enumerate(self.allSaves):
             print(f"{n + 1}) {s}")
         choice = input("Enter your choice: ")
@@ -126,11 +115,12 @@ class LoadGame(MainMenu):
             filepath = newSave
         elif newSave is None:
             filepath = Path("saves/" + self.save)
-        with open(filepath, "r") as f:
-            reader = csv.reader(f, delimiter=",", quoting=csv.QUOTE_MINIMAL)
-            saveData = list(reader)
-            os.system('cls||clear')
-            game.MainGame.__init__(self=game.MainGame, saveData=saveData)
+        conn = sqlite3.connect(filepath)
+        cursor = conn.execute("SELECT * from game_data")
+        rows = cursor.fetchall()
+        data = list(*rows)
+        conn.close()
+        game.MainGame.__init__(self=game.MainGame, saveData=data)
 
     # Function for grabbing all save files in /saves and printing them to screen with a number
     def grab_saves(self):
